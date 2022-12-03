@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"log"
 	"runtime"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-gl/glfw/v3.1/glfw"
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dgl"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -56,7 +58,9 @@ func display(gc draw2d.GraphicContext) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.ClearColor(0, 0, 0, 0)
 	gl.LineWidth(2)
-	drawCell(cursor)
+	if placeMode {
+		drawCell(cursor)
+	}
 	for _, element := range cells {
 		drawCell(element)
 	}
@@ -113,26 +117,30 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 	case key == glfw.KeyEscape && action == glfw.Press,
 		key == glfw.KeyQ && action == glfw.Press:
 		w.SetShouldClose(true)
-	case key == glfw.KeyUp && action == glfw.Press:
+	case key == glfw.KeyUp && action == glfw.Press && placeMode:
 		if cursor.yIndex >= 1 {
 			cursor.yIndex -= 1
 		}
-	case key == glfw.KeyDown && action == glfw.Press:
+	case key == glfw.KeyDown && action == glfw.Press && placeMode:
 		if cursor.yIndex <= width/cellWidth-2 {
 			cursor.yIndex += 1
 		}
-	case key == glfw.KeyRight && action == glfw.Press:
+	case key == glfw.KeyRight && action == glfw.Press && placeMode:
 		if cursor.xIndex <= width/cellWidth-2 {
 			cursor.xIndex += 1
 		}
-	case key == glfw.KeyLeft && action == glfw.Press:
+	case key == glfw.KeyLeft && action == glfw.Press && placeMode:
 		if cursor.xIndex >= 1 {
 			cursor.xIndex -= 1
 		}
 	case key == glfw.KeySpace && action == glfw.Press && placeMode:
-		cells = append(cells, &Cell{cursor.xIndex, cursor.yIndex, true, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
-
-	case key == glfw.KeyZ:
+		ind := cellAtCursor()
+		if ind == -1 {
+			cells = append(cells, &Cell{cursor.xIndex, cursor.yIndex, true, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
+		} else {
+			cells, _ = removeElement(cells, ind)
+		}
+	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
 	}
 
@@ -152,4 +160,16 @@ func drawCell(cell *Cell) {
 		gc.SetFillColor(cell.color)
 		gc.FillStroke()
 	}
+}
+
+func cellAtCursor() (index int) {
+	return slices.IndexFunc(cells, func(c *Cell) bool { return c.xIndex == cursor.xIndex && c.yIndex == cursor.yIndex })
+}
+
+func removeElement(s []*Cell, i int) ([]*Cell, error) {
+	if i >= len(s) || i < 0 {
+		return nil, fmt.Errorf("Index is out of range. Index is %d with slice length %d", i, len(s))
+	}
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1], nil
 }
