@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 	"runtime"
@@ -104,7 +103,6 @@ func main() {
 			window.SwapBuffers()
 		}
 		glfw.PollEvents()
-		//		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -138,7 +136,7 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		if ind == -1 {
 			cells = append(cells, &Cell{cursor.xIndex, cursor.yIndex, true, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
 		} else {
-			cells, _ = removeElement(cells, ind)
+			cells = removeElement(cells, ind)
 		}
 	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
@@ -166,10 +164,10 @@ func cellAtCursor() (index int) {
 	return slices.IndexFunc(cells, func(c *Cell) bool { return c.xIndex == cursor.xIndex && c.yIndex == cursor.yIndex })
 }
 
-func removeElement(s []*Cell, i int) ([]*Cell, error) {
+func removeElement(s []*Cell, i int) []*Cell {
 	if i >= len(s) || i < 0 {
-		return nil, fmt.Errorf("Index is out of range. Index is %d with slice length %d", i, len(s))
+		return nil
 	}
 	s[i] = s[len(s)-1]
-	return s[:len(s)-1], nil
+	return s[:len(s)-1]
 }
