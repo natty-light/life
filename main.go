@@ -9,26 +9,22 @@ import (
 	"github.com/go-gl/glfw/v3.1/glfw"
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dgl"
-	"golang.org/x/exp/slices"
 )
 
 var (
 	// global rotation
-	width, height int
-	redraw        = true
-	gc            *draw2dgl.GraphicContext
-	cellWidth     = 40
-	placeMode     = true
-	cells         []*Cell
-	cursor        *Cell = &Cell{0, 0, true, color.NRGBA{0x80, 0x80, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}}
+	width, height    int
+	redraw           = true
+	gc               *draw2dgl.GraphicContext
+	cellWidth        = 40
+	placeMode        = true
+	board            [20][20]*Cell
+	cursorX, cursorY int
 )
 
 type Cell struct {
-	xIndex      int
-	yIndex      int
-	alive       bool
-	color       color.NRGBA
-	strokeColor color.NRGBA
+	alive      bool
+	shouldLive bool
 }
 
 func reshape(window *glfw.Window, w, h int) {
@@ -58,12 +54,13 @@ func display(gc draw2d.GraphicContext) {
 	gl.ClearColor(0, 0, 0, 0)
 	gl.LineWidth(2)
 
-	for _, element := range cells {
-		drawCell(element)
-	}
-
+	drawBoard()
 	if placeMode {
-		drawCell(cursor)
+		drawCell(cursorX, cursorY, true)
+	}
+	if !placeMode {
+		prepareNextBoard()
+		updateGameState()
 	}
 	gl.Flush()
 
@@ -90,7 +87,7 @@ func main() {
 	window.SetKeyCallback(onKey)
 	window.SetCharCallback(onChar)
 
-	glfw.SwapInterval(0)
+	glfw.SwapInterval(1)
 
 	err = gl.Init()
 	if err != nil {
@@ -99,7 +96,8 @@ func main() {
 
 	reshape(window, width, height)
 
-	cells = createCells()
+	createCells()
+	cursorX, cursorY = 0, 0
 
 	for !window.ShouldClose() {
 		if redraw {
@@ -120,68 +118,96 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		key == glfw.KeyQ && action == glfw.Press:
 		w.SetShouldClose(true)
 	case key == glfw.KeyUp && action == glfw.Press && placeMode:
-		if cursor.yIndex >= 1 {
-			cursor.yIndex -= 1
+		if cursorY >= 1 {
+			cursorY -= 1
 		}
 	case key == glfw.KeyDown && action == glfw.Press && placeMode:
-		if cursor.yIndex <= width/cellWidth-2 {
-			cursor.yIndex += 1
+		if cursorY <= width/cellWidth-2 {
+			cursorY += 1
 		}
 	case key == glfw.KeyRight && action == glfw.Press && placeMode:
-		if cursor.xIndex <= width/cellWidth-2 {
-			cursor.xIndex += 1
+		if cursorX <= width/cellWidth-2 {
+			cursorX += 1
 		}
 	case key == glfw.KeyLeft && action == glfw.Press && placeMode:
-		if cursor.xIndex >= 1 {
-			cursor.xIndex -= 1
+		if cursorX >= 1 {
+			cursorX -= 1
 		}
 	case key == glfw.KeySpace && action == glfw.Press && placeMode:
-		ind := cellAtCursor()
-		cells[ind].alive = !cells[ind].alive
+		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
 	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
 	}
-
-	log.Printf(`x: %d y: %d`, cursor.xIndex, cursor.yIndex)
 }
 
-func drawCell(cell *Cell) {
-	if cell.alive {
-		xPos, yPos := float64(cell.xIndex*cellWidth), float64(cell.yIndex*cellWidth)
-		gc.MoveTo(xPos, yPos)
-		gc.LineTo(xPos+float64(cellWidth), yPos)
-		gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
-		gc.LineTo(xPos, yPos+float64(cellWidth))
-		gc.LineTo(xPos, yPos)
-		gc.Close()
-		gc.SetStrokeColor(cell.strokeColor)
-		gc.SetFillColor(cell.color)
-		gc.FillStroke()
+func drawCell(x int, y int, isCursor bool) {
+	xPos, yPos := float64(x*cellWidth), float64(y*cellWidth)
+	gc.MoveTo(xPos, yPos)
+	gc.LineTo(xPos+float64(cellWidth), yPos)
+	gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
+	gc.LineTo(xPos, yPos+float64(cellWidth))
+	gc.LineTo(xPos, yPos)
+	gc.Close()
+	gc.SetStrokeColor(color.NRGBA{0xFF, 0xFF, 0xFF, 0x80})
+	if isCursor {
+		gc.SetFillColor(color.NRGBA{0x80, 0x80, 0xFF, 0xFF})
+	} else if board[x][y].alive {
+		gc.SetFillColor(color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF})
+	} else {
+		gc.SetFillColor(color.NRGBA{0x00, 0x00, 0x00, 0xFF})
 	}
+	gc.FillStroke()
 }
 
-func cellAtCursor() (index int) {
-	return slices.IndexFunc(cells, func(c *Cell) bool { return c.xIndex == cursor.xIndex && c.yIndex == cursor.yIndex })
-}
-
-// func removeElement(cells []*Cell, i int) []*Cell {
-// 	if i >= len(cells) || i < 0 {
-// 		return nil
-// 	}
-// 	cells[i] = cells[len(cells)-1]
-// 	return cells[:len(cells)-1]
-// }
-
-// func applyRules(cell *Cell) {
-// 	var neighbors []*Cell
-
-// }
-
-func createCells() (cells []*Cell) {
-	for y := 0; y < width/cellWidth; y++ {
-		for x := 0; x < width/cellWidth; x++ {
-			cells = append(cells, &Cell{x, y, false, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
+func createCells() {
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			board[x][y] = &Cell{false, false}
 		}
 	}
-	return cells
+}
+
+func drawBoard() {
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			drawCell(x, y, false)
+		}
+	}
+}
+
+func prepareNextBoard() {
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			applyRules(x, y)
+		}
+	}
+}
+
+func applyRules(xIndex int, yIndex int) {
+	var neighborCount int = 0
+	for x := xIndex - 1; x < xIndex+1; x++ {
+		for y := yIndex - 1; y < yIndex+1; y++ {
+			if x >= 0 && x <= width/cellWidth && y >= 0 && y <= width/cellWidth {
+				neighborCount++
+			}
+		}
+	}
+
+	if board[xIndex][yIndex].alive && neighborCount <= 2 {
+		board[xIndex][yIndex].shouldLive = false
+	} else if board[xIndex][yIndex].alive && neighborCount <= 3 {
+		board[xIndex][yIndex].shouldLive = true
+	} else if board[xIndex][yIndex].alive && neighborCount > 3 {
+		board[xIndex][yIndex].shouldLive = false
+	} else if !board[xIndex][yIndex].alive && neighborCount == 3 {
+		board[xIndex][yIndex].shouldLive = true
+	}
+}
+
+func updateGameState() {
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			board[x][y].alive = board[x][y].shouldLive
+		}
+	}
 }
