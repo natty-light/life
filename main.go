@@ -17,13 +17,17 @@ var (
 	redraw        = true
 	gc            *draw2dgl.GraphicContext
 	cellWidth           = 40
-	cursor        *Cell = &Cell{0, 0, true}
+	cursor        *Cell = &Cell{0, 0, true, color.NRGBA{0x80, 0x80, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}}
+	cells         []*Cell
+	placeMode     = true
 )
 
 type Cell struct {
-	xIndex int
-	yIndex int
-	alive  bool
+	xIndex      int
+	yIndex      int
+	alive       bool
+	color       color.NRGBA
+	strokeColor color.NRGBA
 }
 
 func reshape(window *glfw.Window, w, h int) {
@@ -48,11 +52,14 @@ func reshape(window *glfw.Window, w, h int) {
 	gc = draw2dgl.NewGraphicContext(width, height)
 }
 
-func display(gc draw2d.GraphicContext, cell *Cell) {
+func display(gc draw2d.GraphicContext) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.ClearColor(0, 0, 0, 0)
 	gl.LineWidth(2)
-	drawCell(cell)
+	drawCell(cursor)
+	for _, element := range cells {
+		drawCell(element)
+	}
 	gl.Flush()
 
 }
@@ -89,7 +96,7 @@ func main() {
 
 	for !window.ShouldClose() {
 		if redraw {
-			display(gc, cursor)
+			display(gc)
 			window.SwapBuffers()
 		}
 		glfw.PollEvents()
@@ -122,19 +129,27 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		if cursor.xIndex >= 1 {
 			cursor.xIndex -= 1
 		}
+	case key == glfw.KeySpace && action == glfw.Press && placeMode:
+		cells = append(cells, &Cell{cursor.xIndex, cursor.yIndex, true, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
+
+	case key == glfw.KeyZ:
+		placeMode = !placeMode
 	}
+
 	log.Printf(`x: %d y: %d`, cursor.xIndex, cursor.yIndex)
 }
 
 func drawCell(cell *Cell) {
-	xPos, yPos := float64(cell.xIndex*cellWidth), float64(cell.yIndex*cellWidth)
-	gc.MoveTo(xPos, yPos)
-	gc.LineTo(xPos+float64(cellWidth), yPos)
-	gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
-	gc.LineTo(xPos, yPos+float64(cellWidth))
-	gc.LineTo(xPos, yPos)
-	gc.Close()
-	gc.SetStrokeColor(color.NRGBA{0x80, 0, 0, 0x80})
-	gc.SetFillColor(color.NRGBA{0x80, 0x80, 0xFF, 0xFF})
-	gc.FillStroke()
+	if cell.alive {
+		xPos, yPos := float64(cell.xIndex*cellWidth), float64(cell.yIndex*cellWidth)
+		gc.MoveTo(xPos, yPos)
+		gc.LineTo(xPos+float64(cellWidth), yPos)
+		gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
+		gc.LineTo(xPos, yPos+float64(cellWidth))
+		gc.LineTo(xPos, yPos)
+		gc.Close()
+		gc.SetStrokeColor(cell.strokeColor)
+		gc.SetFillColor(cell.color)
+		gc.FillStroke()
+	}
 }
