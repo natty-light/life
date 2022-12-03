@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"log"
+	"math/rand"
 	"runtime"
 	"time"
 
@@ -14,12 +15,12 @@ import (
 
 var (
 	// global rotation
-	width, height    int
-	redraw           = true
+	width, height    int = 800, 800
+	redraw               = true
 	gc               *draw2dgl.GraphicContext
-	cellWidth        = 40
+	cellWidth        = 20
 	placeMode        = true
-	board            [20][20]*Cell
+	board            [40][40]*Cell
 	cursorX, cursorY int
 )
 
@@ -78,7 +79,6 @@ func main() {
 		panic(err)
 	}
 	defer glfw.Terminate()
-	width, height = 800, 800
 	window, err := glfw.CreateWindow(width, height, "Life", nil, nil)
 	if err != nil {
 		panic(err)
@@ -141,6 +141,8 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		placeMode = !placeMode
 	case key == glfw.KeyC && action == glfw.Press:
 		createCells()
+	case key == glfw.KeyR && action == glfw.Press:
+		createRandomPattern()
 	}
 }
 
@@ -167,6 +169,14 @@ func createCells() {
 	for x := 0; x < len(board); x++ {
 		for y := 0; y < len(board[x]); y++ {
 			board[x][y] = &Cell{false, false}
+		}
+	}
+}
+
+func createRandomPattern() {
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			board[x][y] = &Cell{rand.Intn(2) == 1, false}
 		}
 	}
 }
