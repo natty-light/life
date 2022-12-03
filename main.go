@@ -17,10 +17,10 @@ var (
 	width, height int
 	redraw        = true
 	gc            *draw2dgl.GraphicContext
-	cellWidth           = 40
-	cursor        *Cell = &Cell{0, 0, true, color.NRGBA{0x80, 0x80, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}}
-	cells         []*Cell
+	cellWidth     = 40
 	placeMode     = true
+	cells         []*Cell
+	cursor        *Cell = &Cell{0, 0, true, color.NRGBA{0x80, 0x80, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}}
 )
 
 type Cell struct {
@@ -57,11 +57,13 @@ func display(gc draw2d.GraphicContext) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.ClearColor(0, 0, 0, 0)
 	gl.LineWidth(2)
-	if placeMode {
-		drawCell(cursor)
-	}
+
 	for _, element := range cells {
 		drawCell(element)
+	}
+
+	if placeMode {
+		drawCell(cursor)
 	}
 	gl.Flush()
 
@@ -96,6 +98,8 @@ func main() {
 	}
 
 	reshape(window, width, height)
+
+	cells = createCells()
 
 	for !window.ShouldClose() {
 		if redraw {
@@ -133,11 +137,7 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		}
 	case key == glfw.KeySpace && action == glfw.Press && placeMode:
 		ind := cellAtCursor()
-		if ind == -1 {
-			cells = append(cells, &Cell{cursor.xIndex, cursor.yIndex, true, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
-		} else {
-			cells = removeElement(cells, ind)
-		}
+		cells[ind].alive = !cells[ind].alive
 	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
 	}
@@ -164,10 +164,24 @@ func cellAtCursor() (index int) {
 	return slices.IndexFunc(cells, func(c *Cell) bool { return c.xIndex == cursor.xIndex && c.yIndex == cursor.yIndex })
 }
 
-func removeElement(s []*Cell, i int) []*Cell {
-	if i >= len(s) || i < 0 {
-		return nil
+// func removeElement(cells []*Cell, i int) []*Cell {
+// 	if i >= len(cells) || i < 0 {
+// 		return nil
+// 	}
+// 	cells[i] = cells[len(cells)-1]
+// 	return cells[:len(cells)-1]
+// }
+
+// func applyRules(cell *Cell) {
+// 	var neighbors []*Cell
+
+// }
+
+func createCells() (cells []*Cell) {
+	for y := 0; y < width/cellWidth; y++ {
+		for x := 0; x < width/cellWidth; x++ {
+			cells = append(cells, &Cell{x, y, false, color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}, color.NRGBA{0x80, 0, 0, 0x80}})
+		}
 	}
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
+	return cells
 }
