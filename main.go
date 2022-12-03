@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"log"
 	"runtime"
+	"time"
 
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
@@ -61,6 +62,7 @@ func display(gc draw2d.GraphicContext) {
 	if !placeMode {
 		prepareNextBoard()
 		updateGameState()
+		time.Sleep(10 * time.Millisecond)
 	}
 	gl.Flush()
 
@@ -137,6 +139,8 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
 	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
+	case key == glfw.KeyC && action == glfw.Press:
+		createCells()
 	}
 }
 
@@ -185,17 +189,20 @@ func prepareNextBoard() {
 
 func applyRules(xIndex int, yIndex int) {
 	var neighborCount int = 0
-	for x := xIndex - 1; x < xIndex+1; x++ {
-		for y := yIndex - 1; y < yIndex+1; y++ {
-			if x >= 0 && x <= width/cellWidth && y >= 0 && y <= width/cellWidth {
+	for x := xIndex - 1; x <= xIndex+1; x++ {
+		for y := yIndex - 1; y <= yIndex+1; y++ {
+			if x >= 0 && x <= width/cellWidth-1 && y >= 0 && y <= width/cellWidth-1 && board[x][y].alive {
 				neighborCount++
 			}
 		}
 	}
+	if board[xIndex][yIndex].alive {
+		neighborCount--
+	}
 
-	if board[xIndex][yIndex].alive && neighborCount <= 2 {
+	if board[xIndex][yIndex].alive && neighborCount < 2 {
 		board[xIndex][yIndex].shouldLive = false
-	} else if board[xIndex][yIndex].alive && neighborCount <= 3 {
+	} else if board[xIndex][yIndex].alive && neighborCount >= 2 && neighborCount <= 3 {
 		board[xIndex][yIndex].shouldLive = true
 	} else if board[xIndex][yIndex].alive && neighborCount > 3 {
 		board[xIndex][yIndex].shouldLive = false
