@@ -20,6 +20,7 @@ var (
 	gc               *draw2dgl.GraphicContext
 	cellWidth        = 20
 	placeMode        = true
+	mousePlace       = false
 	board            [40][40]*Cell
 	cursorX, cursorY int
 )
@@ -57,9 +58,8 @@ func display(gc draw2d.GraphicContext) {
 	gl.LineWidth(2)
 
 	drawBoard()
-	if placeMode {
-		drawCell(cursorX, cursorY, true)
-	}
+	drawCursor()
+
 	if !placeMode {
 		prepareNextBoard()
 		go updateGameState()
@@ -67,6 +67,17 @@ func display(gc draw2d.GraphicContext) {
 	}
 	gl.Flush()
 
+}
+
+func drawCursor() {
+	if placeMode && !mousePlace {
+		drawCell(cursorX, cursorY, true)
+	}
+	if mousePlace && placeMode {
+		mX, mY := glfw.GetCurrentContext().GetCursorPos()
+		cursorX, cursorY = int(mX/float64(cellWidth)), int(mY/float64(cellWidth))
+		drawCell(cursorX, cursorY, true)
+	}
 }
 
 func init() {
@@ -88,9 +99,8 @@ func main() {
 	window.SetSizeCallback(reshape)
 	window.SetKeyCallback(onKey)
 	window.SetCharCallback(onChar)
-
+	window.SetMouseButtonCallback(onClick)
 	glfw.SwapInterval(1)
-
 	err = gl.Init()
 	if err != nil {
 		panic(err)
@@ -107,6 +117,12 @@ func main() {
 			window.SwapBuffers()
 		}
 		glfw.PollEvents()
+	}
+}
+
+func onClick(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+	if mousePlace && button == glfw.MouseButton1 && action == glfw.Press {
+		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
 	}
 }
 
@@ -139,6 +155,10 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
 	case key == glfw.KeyZ && action == glfw.Press:
 		placeMode = !placeMode
+	case key == glfw.KeyM && action == glfw.Press:
+		if placeMode {
+			mousePlace = !mousePlace
+		}
 	case key == glfw.KeyC && action == glfw.Press:
 		createCells()
 	case key == glfw.KeyR && action == glfw.Press:
