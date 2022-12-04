@@ -120,16 +120,19 @@ func main() {
 	}
 }
 
+// Mouse button click callback
 func onClick(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if mousePlace && button == glfw.MouseButton1 && action == glfw.Press {
 		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
 	}
 }
 
+// Keyboard char callback
 func onChar(w *glfw.Window, char rune) {
 	log.Println(char)
 }
 
+// Keyboard key callback
 func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	switch {
 	case key == glfw.KeyEscape && action == glfw.Press,
