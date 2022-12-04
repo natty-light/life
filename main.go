@@ -62,7 +62,7 @@ func display(gc draw2d.GraphicContext) {
 	}
 	if !placeMode {
 		prepareNextBoard()
-		updateGameState()
+		go updateGameState()
 		time.Sleep(10 * time.Millisecond)
 	}
 	gl.Flush()
