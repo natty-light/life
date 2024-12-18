@@ -366,11 +366,11 @@ func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods 
 		w.SetShouldClose(true)
 	case key == glfw.KeyUp && action == glfw.Press && game.getPlaceMode():
 		if x >= 1 {
-			game.setCursor(x-1, y)
+			game.setCursor(x, y-1)
 		}
 	case key == glfw.KeyDown && action == glfw.Press && game.getPlaceMode():
 		if y <= width/cellWidth-2 {
-			game.setCursor(x+1, y)
+			game.setCursor(x, y+1)
 		}
 	case key == glfw.KeyRight && action == glfw.Press && game.getPlaceMode():
 		if x <= width/cellWidth-2 {
