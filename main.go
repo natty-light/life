@@ -21,7 +21,6 @@ var (
 	width, height                                              = 800, 900
 	boardWidth, boardHeight                                    = width, height - 100
 	boardBound                                                 = 40
-	redraw                                                     = true
 	gc                                                         *draw2dgl.GraphicContext
 	cellWidth                                                  = 20
 	game                                                       *Game
@@ -50,6 +49,7 @@ type Game struct {
 	mousePlace bool
 	cursorX    int
 	cursorY    int
+	redraw     bool
 }
 
 func (g *Game) GetBoard() [40][40]*Cell {
@@ -201,6 +201,18 @@ func (g *Game) drawCell(x int, y int, isCursor bool) {
 	gc.FillStroke()
 }
 
+func (g *Game) getRedraw() bool {
+	return g.redraw
+}
+
+func (g *Game) setRedraw(redraw bool) {
+	g.redraw = redraw
+}
+
+func (g *Game) toggleRedraw() {
+	g.redraw = !g.redraw
+}
+
 func (fc FontCache) Store(fd draw2d.FontData, f *truetype.Font) {
 	fc[fd.Name] = f
 }
@@ -231,7 +243,7 @@ func reshape(window *glfw.Window, w, h int) {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Disable(gl.DEPTH_TEST)
 	width, height = w, h
-	redraw = true
+	game.setRedraw(true)
 	gc = draw2dgl.NewGraphicContext(width, height)
 }
 
@@ -337,7 +349,7 @@ func main() {
 	game.setCursor(0, 0)
 
 	for !window.ShouldClose() {
-		if redraw {
+		if game.getRedraw() {
 			display(gc)
 			window.SwapBuffers()
 		}
