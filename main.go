@@ -15,14 +15,16 @@ import (
 
 var (
 	// global rotation
-	width, height    int = 800, 800
-	redraw               = true
-	gc               *draw2dgl.GraphicContext
-	cellWidth        = 20
-	placeMode        = true
-	mousePlace       = false
-	board            [40][40]*Cell
-	cursorX, cursorY int
+	width, height           int = 800, 1000
+	boardWidth, boardHeight int = width, height - 200
+	redraw                      = true
+	gc                      *draw2dgl.GraphicContext
+	cellWidth               = 20
+	placeMode               = true
+	mousePlace              = false
+	board                   [40][40]*Cell
+	cursorX, cursorY        int
+	maxCursorX, maxCursorY  int = boardWidth / cellWidth, boardHeight / cellWidth
 )
 
 type Cell struct {
@@ -59,6 +61,7 @@ func display(gc draw2d.GraphicContext) {
 
 	drawBoard()
 	drawCursor()
+	//drawControls()
 
 	if !placeMode {
 		prepareNextBoard()
@@ -66,7 +69,6 @@ func display(gc draw2d.GraphicContext) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	gl.Flush()
-
 }
 
 func drawCursor() {
@@ -75,9 +77,33 @@ func drawCursor() {
 	}
 	if mousePlace && placeMode {
 		mX, mY := glfw.GetCurrentContext().GetCursorPos()
-		cursorX, cursorY = int(mX/float64(cellWidth)), int(mY/float64(cellWidth))
+		handleCursorBoundaries(mX, mY)
 		drawCell(cursorX, cursorY, true)
 	}
+}
+
+func handleCursorBoundaries(mX, mY float64) {
+	adjustedX, adjustedY := int(mX/float64(cellWidth)), int(mY/float64(cellWidth))
+	log.Printf("X: %d, Y: %d, max X: %d, maxY: %d", adjustedX, adjustedY, maxCursorX, maxCursorY)
+	if adjustedX < 0 {
+		adjustedX = 0
+	} else if adjustedX > maxCursorX {
+		adjustedX = maxCursorX - 1
+	}
+
+	if adjustedY < 0 {
+		adjustedY = 0
+	} else if adjustedY > maxCursorY {
+		adjustedY = maxCursorY - 1
+	}
+
+	cursorX, cursorY = adjustedX, adjustedY
+}
+
+func drawControls() {
+	gc.SetFontData(draw2d.FontData{Name: "GoRegular", Family: draw2d.FontFamilySans, Style: draw2d.FontStyleNormal})
+	gc.SetFontSize(20)
+	gc.FillStringAt("Controls", 100, 900)
 }
 
 func init() {
@@ -105,6 +131,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	draw2d.SetFontFolder("")
 
 	reshape(window, width, height)
 
@@ -221,7 +249,7 @@ func prepareNextBoard() {
 }
 
 func applyRules(xIndex int, yIndex int) {
-	var neighborCount int = 0
+	neighborCount := 0
 	for x := xIndex - 1; x <= xIndex+1; x++ {
 		for y := yIndex - 1; y <= yIndex+1; y++ {
 			if x >= 0 && x <= width/cellWidth-1 && y >= 0 && y <= width/cellWidth-1 && board[x][y].alive {
