@@ -18,18 +18,23 @@ import (
 
 var (
 	// global rotation
-	width, height                                              int = 800, 900
-	boardWidth, boardHeight                                    int = width, height - 100
-	redraw                                                         = true
+	width, height                                              = 800, 900
+	boardWidth, boardHeight                                    = width, height - 100
+	boardBound                                                 = 40
+	redraw                                                     = true
 	gc                                                         *draw2dgl.GraphicContext
 	cellWidth                                                  = 20
-	placeMode                                                  = true
-	mousePlace                                                 = false
-	board                                                      [40][40]*Cell
-	cursorX, cursorY                                           int
-	maxCursorX, maxCursorY                                     int     = boardWidth / cellWidth, boardHeight / cellWidth
-	fontColor                                                          = color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+	game                                                       *Game
+	maxCursorX, maxCursorY                                             = boardWidth / cellWidth, boardHeight / cellWidth
 	fontColumnOne, fontColumnTwo, fontSpacing, fontStartHeight float64 = 50, 400, 20, 820
+)
+
+var (
+	fontColor       = color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+	cursorColor     = color.NRGBA{R: 0x80, G: 0x80, B: 0xFF, A: 0xFF}
+	cellColor       = color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+	deadCellColor   = color.NRGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}
+	cellBorderColor = color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0x80}
 )
 
 type Cell struct {
@@ -38,6 +43,163 @@ type Cell struct {
 }
 
 type FontCache map[string]*truetype.Font
+
+type Game struct {
+	board      [40][40]*Cell
+	placeMode  bool
+	mousePlace bool
+	cursorX    int
+	cursorY    int
+}
+
+func (g *Game) GetBoard() [40][40]*Cell {
+	return g.board
+}
+
+func (g *Game) setCursor(x, y int) {
+	g.cursorX, g.cursorY = x, y
+}
+
+func (g *Game) getCursor() (int, int) {
+	return g.cursorX, g.cursorY
+}
+
+func (g *Game) setPlaceMode(mode bool) {
+	g.placeMode = mode
+}
+
+func (g *Game) setMousePlaceMode(mode bool) {
+	g.mousePlace = mode
+}
+
+func (g *Game) togglePlaceMode() {
+	g.placeMode = !g.placeMode
+}
+
+func (g *Game) isMousePlaceMode() bool {
+	return g.mousePlace && g.placeMode
+}
+
+func (g *Game) isCursorPlaceMode() bool {
+	return g.placeMode && !g.mousePlace
+}
+
+func (g *Game) getPlaceMode() bool {
+	return g.placeMode
+}
+
+func (g *Game) toggleCell() {
+	g.board[g.cursorX][g.cursorY].alive = !g.board[g.cursorX][g.cursorY].alive
+}
+
+func (g *Game) toggleMousePlaceMode() {
+	g.mousePlace = !g.mousePlace
+}
+
+func (g *Game) checkCell(x, y int) bool {
+	if (x < 0 && x > width/cellWidth-1) && (y < 0 && y > width/cellWidth-1) {
+		log.Fatal("Cell out of bounds")
+	}
+	return g.board[x][y].alive
+}
+
+func (g *Game) setCellFuture(x, y int, shouldLive bool) {
+	g.board[x][y].shouldLive = shouldLive
+}
+
+func (g *Game) setCell(cell *Cell, x, y int) {
+	g.board[x][y] = cell
+}
+
+func (g *Game) getCell(x, y int) *Cell {
+	return g.board[x][y]
+}
+
+func (g *Game) ageCell(x, y int) {
+	g.getCell(x, y).alive = g.getCell(x, y).shouldLive
+}
+
+func (g *Game) updateGameState() {
+	for x := 0; x < boardBound; x++ {
+		for y := 0; y < boardBound; y++ {
+			game.ageCell(x, y)
+		}
+	}
+}
+
+func (g *Game) prepareNextBoard() {
+	for x := 0; x < boardBound; x++ {
+		for y := 0; y < boardBound; y++ {
+			g.applyRules(x, y)
+		}
+	}
+}
+
+func (g *Game) applyRules(xIndex int, yIndex int) {
+	neighborCount := 0
+	for x := xIndex - 1; x <= xIndex+1; x++ {
+		for y := yIndex - 1; y <= yIndex+1; y++ {
+			if x >= 0 && x <= width/cellWidth-1 && y >= 0 && y <= width/cellWidth-1 && g.checkCell(x, y) {
+				neighborCount++
+			}
+		}
+	}
+	if g.checkCell(xIndex, yIndex) {
+		neighborCount--
+	}
+
+	if g.checkCell(xIndex, yIndex) && neighborCount < 2 {
+		g.setCellFuture(xIndex, yIndex, false)
+	} else if g.checkCell(xIndex, yIndex) && neighborCount >= 2 && neighborCount <= 3 {
+		g.setCellFuture(xIndex, yIndex, true)
+	} else if g.checkCell(xIndex, yIndex) && neighborCount > 3 {
+		g.setCellFuture(xIndex, yIndex, false)
+	} else if !g.checkCell(xIndex, yIndex) && neighborCount == 3 {
+		g.setCellFuture(xIndex, yIndex, true)
+	}
+}
+func (g *Game) createCells() {
+	for x := 0; x < boardBound; x++ {
+		for y := 0; y < boardBound; y++ {
+			g.setCell(&Cell{false, false}, x, y)
+		}
+	}
+}
+
+func (g *Game) createRandomPattern() {
+	for x := 0; x < boardBound; x++ {
+		for y := 0; y < boardBound; y++ {
+			g.setCell(&Cell{rand.Intn(2) == 1, false}, x, y)
+		}
+	}
+}
+
+func (g *Game) drawBoard() {
+	for x := 0; x < boardBound; x++ {
+		for y := 0; y < boardBound; y++ {
+			g.drawCell(x, y, false)
+		}
+	}
+}
+
+func (g *Game) drawCell(x int, y int, isCursor bool) {
+	xPos, yPos := float64(x*cellWidth), float64(y*cellWidth)
+	gc.MoveTo(xPos, yPos)
+	gc.LineTo(xPos+float64(cellWidth), yPos)
+	gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
+	gc.LineTo(xPos, yPos+float64(cellWidth))
+	gc.LineTo(xPos, yPos)
+	gc.Close()
+	gc.SetStrokeColor(cellBorderColor)
+	if isCursor {
+		gc.SetFillColor(cursorColor)
+	} else if game.checkCell(x, y) {
+		gc.SetFillColor(cellColor)
+	} else {
+		gc.SetFillColor(deadCellColor)
+	}
+	gc.FillStroke()
+}
 
 func (fc FontCache) Store(fd draw2d.FontData, f *truetype.Font) {
 	fc[fd.Name] = f
@@ -78,32 +240,30 @@ func display(gc draw2d.GraphicContext) {
 	gl.ClearColor(0, 0, 0, 0)
 	gl.LineWidth(2)
 
-	drawBoard()
+	game.drawBoard()
 	drawCursor()
 	drawControls()
 
-	if !placeMode {
-		prepareNextBoard()
-		go updateGameState()
+	if !game.getPlaceMode() {
+		game.prepareNextBoard()
+		go game.updateGameState()
 		time.Sleep(10 * time.Millisecond)
 	}
 	gl.Flush()
 }
 
 func drawCursor() {
-	if placeMode && !mousePlace {
-		drawCell(cursorX, cursorY, true)
-	}
-	if mousePlace && placeMode {
+	if game.isCursorPlaceMode() {
+		game.drawCell(game.cursorX, game.cursorY, true)
+	} else if game.isMousePlaceMode() {
 		mX, mY := glfw.GetCurrentContext().GetCursorPos()
 		handleCursorBoundaries(mX, mY)
-		drawCell(cursorX, cursorY, true)
+		game.drawCell(game.cursorX, game.cursorY, true)
 	}
 }
 
 func handleCursorBoundaries(mX, mY float64) {
 	adjustedX, adjustedY := int(mX/float64(cellWidth)), int(mY/float64(cellWidth))
-	log.Printf("X: %d, Y: %d, max X: %d, maxY: %d", adjustedX, adjustedY, maxCursorX, maxCursorY)
 	if adjustedX < 0 {
 		adjustedX = 0
 	} else if adjustedX > maxCursorX {
@@ -116,7 +276,7 @@ func handleCursorBoundaries(mX, mY float64) {
 		adjustedY = maxCursorY - 1
 	}
 
-	cursorX, cursorY = adjustedX, adjustedY
+	game.setCursor(adjustedX, adjustedY)
 }
 
 func drawControls() {
@@ -143,6 +303,8 @@ func init() {
 
 	fc.Store(draw2d.FontData{Name: "GoRegular", Family: draw2d.FontFamilySans, Style: draw2d.FontStyleNormal}, font)
 	draw2d.SetFontCache(fc)
+
+	game = &Game{placeMode: true, mousePlace: false, cursorX: 0, cursorY: 0}
 }
 
 func main() {
@@ -171,8 +333,8 @@ func main() {
 
 	reshape(window, width, height)
 
-	createCells()
-	cursorX, cursorY = 0, 0
+	game.createCells()
+	game.setCursor(0, 0)
 
 	for !window.ShouldClose() {
 		if redraw {
@@ -185,8 +347,8 @@ func main() {
 
 // Mouse button click callback
 func onClick(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-	if mousePlace && button == glfw.MouseButton1 && action == glfw.Press {
-		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
+	if game.isMousePlaceMode() && button == glfw.MouseButton1 && action == glfw.Press {
+		game.toggleCell()
 	}
 }
 
@@ -197,120 +359,38 @@ func onChar(w *glfw.Window, char rune) {
 
 // Keyboard key callback
 func onKey(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	x, y := game.getCursor()
 	switch {
 	case key == glfw.KeyEscape && action == glfw.Press,
 		key == glfw.KeyQ && action == glfw.Press:
 		w.SetShouldClose(true)
-	case key == glfw.KeyUp && action == glfw.Press && placeMode:
-		if cursorY >= 1 {
-			cursorY -= 1
+	case key == glfw.KeyUp && action == glfw.Press && game.getPlaceMode():
+		if x >= 1 {
+			game.setCursor(x-1, y)
 		}
-	case key == glfw.KeyDown && action == glfw.Press && placeMode:
-		if cursorY <= width/cellWidth-2 {
-			cursorY += 1
+	case key == glfw.KeyDown && action == glfw.Press && game.getPlaceMode():
+		if y <= width/cellWidth-2 {
+			game.setCursor(x+1, y)
 		}
-	case key == glfw.KeyRight && action == glfw.Press && placeMode:
-		if cursorX <= width/cellWidth-2 {
-			cursorX += 1
+	case key == glfw.KeyRight && action == glfw.Press && game.getPlaceMode():
+		if x <= width/cellWidth-2 {
+			game.setCursor(x+1, y)
 		}
-	case key == glfw.KeyLeft && action == glfw.Press && placeMode:
-		if cursorX >= 1 {
-			cursorX -= 1
+	case key == glfw.KeyLeft && action == glfw.Press && game.getPlaceMode():
+		if x >= 1 {
+			game.setCursor(x-1, y)
 		}
-	case key == glfw.KeySpace && action == glfw.Press && placeMode:
-		board[cursorX][cursorY].alive = !board[cursorX][cursorY].alive
+	case key == glfw.KeySpace && action == glfw.Press && game.getPlaceMode():
+		game.toggleCell()
 	case key == glfw.KeyZ && action == glfw.Press:
-		placeMode = !placeMode
+		game.togglePlaceMode()
 	case key == glfw.KeyM && action == glfw.Press:
-		if placeMode {
-			mousePlace = !mousePlace
+		if game.getPlaceMode() {
+			game.toggleMousePlaceMode()
 		}
 	case key == glfw.KeyC && action == glfw.Press:
-		createCells()
+		game.createCells()
 	case key == glfw.KeyR && action == glfw.Press:
-		createRandomPattern()
-	}
-}
-
-func drawCell(x int, y int, isCursor bool) {
-	xPos, yPos := float64(x*cellWidth), float64(y*cellWidth)
-	gc.MoveTo(xPos, yPos)
-	gc.LineTo(xPos+float64(cellWidth), yPos)
-	gc.LineTo(xPos+float64(cellWidth), yPos+float64(cellWidth))
-	gc.LineTo(xPos, yPos+float64(cellWidth))
-	gc.LineTo(xPos, yPos)
-	gc.Close()
-	gc.SetStrokeColor(color.NRGBA{0xFF, 0xFF, 0xFF, 0x80})
-	if isCursor {
-		gc.SetFillColor(color.NRGBA{0x80, 0x80, 0xFF, 0xFF})
-	} else if board[x][y].alive {
-		gc.SetFillColor(color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF})
-	} else {
-		gc.SetFillColor(color.NRGBA{0x00, 0x00, 0x00, 0xFF})
-	}
-	gc.FillStroke()
-}
-
-func createCells() {
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
-			board[x][y] = &Cell{false, false}
-		}
-	}
-}
-
-func createRandomPattern() {
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
-			board[x][y] = &Cell{rand.Intn(2) == 1, false}
-		}
-	}
-}
-
-func drawBoard() {
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
-			drawCell(x, y, false)
-		}
-	}
-}
-
-func prepareNextBoard() {
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
-			applyRules(x, y)
-		}
-	}
-}
-
-func applyRules(xIndex int, yIndex int) {
-	neighborCount := 0
-	for x := xIndex - 1; x <= xIndex+1; x++ {
-		for y := yIndex - 1; y <= yIndex+1; y++ {
-			if x >= 0 && x <= width/cellWidth-1 && y >= 0 && y <= width/cellWidth-1 && board[x][y].alive {
-				neighborCount++
-			}
-		}
-	}
-	if board[xIndex][yIndex].alive {
-		neighborCount--
-	}
-
-	if board[xIndex][yIndex].alive && neighborCount < 2 {
-		board[xIndex][yIndex].shouldLive = false
-	} else if board[xIndex][yIndex].alive && neighborCount >= 2 && neighborCount <= 3 {
-		board[xIndex][yIndex].shouldLive = true
-	} else if board[xIndex][yIndex].alive && neighborCount > 3 {
-		board[xIndex][yIndex].shouldLive = false
-	} else if !board[xIndex][yIndex].alive && neighborCount == 3 {
-		board[xIndex][yIndex].shouldLive = true
-	}
-}
-
-func updateGameState() {
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
-			board[x][y].alive = board[x][y].shouldLive
-		}
+		game.createRandomPattern()
 	}
 }
