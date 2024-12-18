@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font/gofont/goregular"
 	"image/color"
 	"log"
 	"math/rand"
@@ -15,21 +18,37 @@ import (
 
 var (
 	// global rotation
-	width, height           int = 800, 1000
-	boardWidth, boardHeight int = width, height - 200
-	redraw                      = true
-	gc                      *draw2dgl.GraphicContext
-	cellWidth               = 20
-	placeMode               = true
-	mousePlace              = false
-	board                   [40][40]*Cell
-	cursorX, cursorY        int
-	maxCursorX, maxCursorY  int = boardWidth / cellWidth, boardHeight / cellWidth
+	width, height                                              int = 800, 900
+	boardWidth, boardHeight                                    int = width, height - 100
+	redraw                                                         = true
+	gc                                                         *draw2dgl.GraphicContext
+	cellWidth                                                  = 20
+	placeMode                                                  = true
+	mousePlace                                                 = false
+	board                                                      [40][40]*Cell
+	cursorX, cursorY                                           int
+	maxCursorX, maxCursorY                                     int     = boardWidth / cellWidth, boardHeight / cellWidth
+	fontColor                                                          = color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+	fontColumnOne, fontColumnTwo, fontSpacing, fontStartHeight float64 = 50, 400, 20, 820
 )
 
 type Cell struct {
 	alive      bool
 	shouldLive bool
+}
+
+type FontCache map[string]*truetype.Font
+
+func (fc FontCache) Store(fd draw2d.FontData, f *truetype.Font) {
+	fc[fd.Name] = f
+}
+
+func (fc FontCache) Load(fd draw2d.FontData) (*truetype.Font, error) {
+	font, stored := fc[fd.Name]
+	if !stored {
+		return nil, fmt.Errorf("font %s not found", fd.Name)
+	}
+	return font, nil
 }
 
 func reshape(window *glfw.Window, w, h int) {
@@ -61,7 +80,7 @@ func display(gc draw2d.GraphicContext) {
 
 	drawBoard()
 	drawCursor()
-	//drawControls()
+	drawControls()
 
 	if !placeMode {
 		prepareNextBoard()
@@ -102,23 +121,39 @@ func handleCursorBoundaries(mX, mY float64) {
 
 func drawControls() {
 	gc.SetFontData(draw2d.FontData{Name: "GoRegular", Family: draw2d.FontFamilySans, Style: draw2d.FontStyleNormal})
-	gc.SetFontSize(20)
-	gc.FillStringAt("Controls", 100, 900)
+	gc.SetFontSize(12)
+	gc.SetFillColor(fontColor)
+	gc.FillStringAt("Controls", fontColumnOne, fontStartHeight)
+	gc.FillStringAt("Arrow keys: Move cursor", fontColumnOne, fontStartHeight+fontSpacing)
+	gc.FillStringAt("Space: Toggle cell", fontColumnTwo, fontStartHeight+fontSpacing)
+	gc.FillStringAt("Z: Toggle place mode", fontColumnOne, fontStartHeight+2*fontSpacing)
+	gc.FillStringAt("M: Toggle mouse placement", fontColumnTwo, fontStartHeight+2*fontSpacing)
+	gc.FillStringAt("C: Clear board", fontColumnOne, fontStartHeight+3*fontSpacing)
+	gc.FillStringAt("R: Random pattern", fontColumnTwo, fontStartHeight+3*fontSpacing)
 }
 
 func init() {
 	runtime.LockOSThread()
+
+	fc := FontCache{}
+	font, err := truetype.Parse(goregular.TTF)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fc.Store(draw2d.FontData{Name: "GoRegular", Family: draw2d.FontFamilySans, Style: draw2d.FontStyleNormal}, font)
+	draw2d.SetFontCache(fc)
 }
 
 func main() {
 	err := glfw.Init()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer glfw.Terminate()
 	window, err := glfw.CreateWindow(width, height, "Life", nil, nil)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	window.MakeContextCurrent()
