@@ -19,20 +19,12 @@ type Game struct {
 	redraw     bool
 }
 
-func (g *Game) GetBoard() [40][40]*Cell {
-	return g.board
-}
-
 func (g *Game) setCursor(x, y int) {
 	g.cursorX, g.cursorY = x, y
 }
 
 func (g *Game) getCursor() (int, int) {
 	return g.cursorX, g.cursorY
-}
-
-func (g *Game) setPlaceMode(mode bool) {
-	g.placeMode = mode
 }
 
 func (g *Game) setMousePlaceMode(mode bool) {
@@ -174,8 +166,4 @@ func (g *Game) getRedraw() bool {
 
 func (g *Game) setRedraw(redraw bool) {
 	g.redraw = redraw
-}
-
-func (g *Game) toggleRedraw() {
-	g.redraw = !g.redraw
 }
