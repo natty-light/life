@@ -20,7 +20,7 @@ var (
 	boardWidth, boardHeight                                    = width, height - 100
 	boardBound                                                 = 40
 	gc                                                         *draw2dgl.GraphicContext
-	cellWidth                                                  = 20
+	cellWidth                                                  = width / boardBound
 	game                                                       *Game
 	maxCursorX, maxCursorY                                             = boardWidth / cellWidth, boardHeight / cellWidth
 	fontColumnOne, fontColumnTwo, fontSpacing, fontStartHeight float64 = 50, 400, 20, 820
@@ -35,9 +35,11 @@ var (
 )
 
 func reshape(window *glfw.Window, w, h int) {
+	fbWidth, fbHeight := window.GetFramebufferSize()
+	log.Printf("reshape(%dx%d) fb(%dx%d)\n", w, h, fbWidth, fbHeight)
 	gl.ClearColor(1, 1, 1, 1)
 	/* Establish viewing area to cover entire window. */
-	gl.Viewport(0, 0, int32(w), int32(h))
+	gl.Viewport(0, 0, int32(fbWidth), int32(fbHeight))
 	/* PROJECTION Matrix mode. */
 	gl.MatrixMode(gl.PROJECTION)
 	/* Reset project matrix. */
@@ -51,9 +53,8 @@ func reshape(window *glfw.Window, w, h int) {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Disable(gl.DEPTH_TEST)
-	width, height = w, h
 	game.setRedraw(true)
-	gc = draw2dgl.NewGraphicContext(width, height)
+	gc = draw2dgl.NewGraphicContext(w, h)
 }
 
 func display(gc draw2d.GraphicContext) {
