@@ -25,7 +25,7 @@ var (
 	game                                                       *Game
 	maxCursorX, maxCursorY                                             = boardWidth / cellWidth, boardHeight / cellWidth
 	fontColumnOne, fontColumnTwo, fontSpacing, fontStartHeight float64 = 50, 400, 20, 820
-	gameSpeed                                                          = 16*time.Millisecond + 667*time.Microsecond
+	gameSpeed                                                  time.Duration
 )
 
 var (
