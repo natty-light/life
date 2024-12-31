@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font/gofont/goregular"
 	"image/color"
@@ -24,6 +25,7 @@ var (
 	game                                                       *Game
 	maxCursorX, maxCursorY                                             = boardWidth / cellWidth, boardHeight / cellWidth
 	fontColumnOne, fontColumnTwo, fontSpacing, fontStartHeight float64 = 50, 400, 20, 820
+	gameSpeed                                                          = 16*time.Millisecond + 667*time.Microsecond
 )
 
 var (
@@ -69,7 +71,7 @@ func display(gc draw2d.GraphicContext) {
 	if !game.getPlaceMode() {
 		game.prepareNextBoard()
 		go game.updateGameState()
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(gameSpeed)
 	}
 	gl.Flush()
 }
@@ -130,6 +132,12 @@ func init() {
 }
 
 func main() {
+	fpsFlag := flag.Int("fps", 60, "Target frames per second")
+	flag.Parse()
+
+	gameSpeed = time.Duration(1000/(*fpsFlag)) * time.Millisecond
+	log.Println("Game speed set to", gameSpeed)
+
 	err := glfw.Init()
 	if err != nil {
 		log.Fatal(err)

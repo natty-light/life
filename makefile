@@ -1,6 +1,6 @@
 # Define variables
 GO = go
-GOFLAGS =
+GOFLAGS = -ldflags -w -o
 
 # Define the main target
 all: build
@@ -10,7 +10,7 @@ build:
 ifeq ($(OS),Windows_NT)
 	$(GO) build $(GOFLAGS) -o life.exe
 else
-	$(GO) build $(GOFLAGS) -o life
+	$(GO) build $(GOFLAGS) life .
 endif
 
 # Fetch dependencies
