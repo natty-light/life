@@ -145,6 +145,7 @@ func main() {
 	window.SetKeyCallback(onKey)
 	window.SetCharCallback(onChar)
 	window.SetMouseButtonCallback(onClick)
+	window.SetCursorPosCallback(onMouseMove)
 	glfw.SwapInterval(1)
 	err = gl.Init()
 	if err != nil {
@@ -167,9 +168,26 @@ func main() {
 	}
 }
 
+var mousePressed bool
+
 // Mouse button click callback
 func onClick(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-	if game.isMousePlaceMode() && button == glfw.MouseButton1 && action == glfw.Press {
+	if button == glfw.MouseButton1 {
+		if action == glfw.Press {
+			mousePressed = true
+			if game.isMousePlaceMode() {
+				game.toggleCell()
+			}
+		} else if action == glfw.Release {
+			mousePressed = false
+		}
+	}
+}
+
+// Mouse movement callback
+func onMouseMove(w *glfw.Window, x, y float64) {
+	if mousePressed && game.isMousePlaceMode() {
+		handleCursorBoundaries(x, y)
 		game.toggleCell()
 	}
 }
